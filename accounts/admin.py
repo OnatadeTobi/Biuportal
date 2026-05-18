@@ -27,8 +27,15 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(StudentProfile)
 class StudentProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'room', 'created_at')
-    search_fields = ('user__full_name', 'user__matric_number', 'room__room_number')
+    list_display = ('user', 'first_name', 'last_name', 'flat_number', 'room', 'created_at')
+    search_fields = (
+        'user__full_name',
+        'user__matric_number',
+        'first_name',
+        'last_name',
+        'flat_number',
+        'room__room_number',
+    )
     raw_id_fields = ('user', 'room')
 
 

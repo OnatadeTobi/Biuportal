@@ -1,4 +1,5 @@
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,7 +8,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from accounts.permissions import IsEmailVerified
 from accounts.serializers import (
     LoginSerializer,
-    LookupStudentSerializer,
     RegisterSerializer,
     ResendOTPSerializer,
     VerifyEmailSerializer,
@@ -17,25 +17,12 @@ from accounts.services.otp import create_otp_for_user
 from accounts.utils import build_user_profile_dict
 
 
-class LookupStudentView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = LookupStudentSerializer(data=request.data)
-        if not serializer.is_valid():
-            message = serializer.errors.get('matric_number', ['Invalid request.'])[0]
-            if isinstance(message, list):
-                message = message[0]
-            return Response({'success': False, 'message': str(message)}, status=status.HTTP_400_BAD_REQUEST)
-        student = serializer.context['student_data']
-        return Response({'success': True, 'student': student})
-
-
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        serializer = RegisterSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             errors = serializer.errors
             for field in ('matric_number', 'non_field_errors'):
@@ -111,7 +98,7 @@ class LoginView(APIView):
         return Response({
             'success': True,
             'token': str(refresh.access_token),
-            'user': build_user_profile_dict(user),
+            'user': build_user_profile_dict(user, request),
         })
 
 
@@ -119,6 +106,6 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
     def get(self, request):
-        user_data = build_user_profile_dict(request.user)
+        user_data = build_user_profile_dict(request.user, request)
         user_data['is_email_verified'] = request.user.is_email_verified
         return Response({'success': True, 'user': user_data})

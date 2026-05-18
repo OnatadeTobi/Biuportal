@@ -52,9 +52,21 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f'{self.full_name} ({self.matric_number})'
 
 
+def profile_picture_upload_path(instance, filename):
+    return f'profile_pictures/{instance.user.matric_number}/{filename}'
+
+
 class StudentProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     room = models.ForeignKey('hostels.Room', on_delete=models.PROTECT, related_name='students')
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    flat_number = models.CharField(max_length=20)
+    profile_picture = models.ImageField(
+        upload_to=profile_picture_upload_path,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsEmailVerified
+from accounts.utils import build_user_profile_dict
 from keys.models import KeyActivity, QRCode
 from keys.serializers import ScanQRSerializer
 from keys.services.key_scan import KeyScanError, get_or_create_key_status, process_qr_scan
@@ -22,13 +23,7 @@ class DashboardView(APIView):
 
         activities = KeyActivity.objects.filter(room=room).select_related('student', 'room')[:10]
 
-        user_summary = {
-            'full_name': request.user.full_name,
-            'matric_number': request.user.matric_number,
-            'email': request.user.email,
-            'hostel': room.hostel,
-            'room_number': room.room_number,
-        }
+        user_summary = build_user_profile_dict(request.user, request)
 
         recent = [
             {

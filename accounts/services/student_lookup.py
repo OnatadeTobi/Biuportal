@@ -1,6 +1,7 @@
-"""Student identity lookup by matric number.
+"""Optional external student registry lookup (not used by registration in MVP).
 
-Replace MOCK_STUDENTS / fetch_student_by_matric with a real external API when available.
+Registration accepts matric, email, and name fields directly from the client.
+Wire this module into a future endpoint or admin tool when an official BIU API exists.
 """
 
 MOCK_STUDENTS = [

@@ -97,15 +97,17 @@ Tokens are returned by `POST /api/auth/login/`. Access tokens are valid for 7 da
 
 ---
 
-## Testing values (mock data)
+## Testing values
 
-### Mock matric numbers
+Use any matric number and email at registration — the backend does **not** validate against an external student registry.
 
-| Matric | Name | Email |
-|--------|------|-------|
-| `BIU/23/CSC/001` | Samuel Asije | samuel.asije@example.com |
-| `BIU/23/CSC/002` | Jane Doe | jane.doe@example.com |
-| `BIU/23/CSC/003` | David Johnson | david.johnson@example.com |
+Example registration:
+
+| Field | Example |
+|-------|---------|
+| `matric_number` | `BIU/23/CSC/001` |
+| `email` | `samuel.asije@example.com` |
+| `first_name` / `last_name` | `Samuel` / `Asije` |
 
 ### Sample password
 
@@ -152,33 +154,29 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
    python manage.py seed_mvp_data
    ```
 
-3. **Lookup mock student**
-
-   `POST http://127.0.0.1:8000/api/auth/lookup-student/`
-
-   ```json
-   {
-     "matric_number": "BIU/23/CSC/001"
-   }
-   ```
-
-4. **Register student** (hostel name from frontend dropdown)
+3. **Register student** (hostel name from frontend dropdown)
 
    `POST http://127.0.0.1:8000/api/auth/register/`
 
    ```json
    {
      "matric_number": "BIU/23/CSC/001",
+     "email": "samuel.asije@example.com",
      "hostel": "Hope Hostel",
      "room_number": "14",
+     "first_name": "Samuel",
+     "last_name": "Asije",
+     "flat_number": "A1",
      "password": "Password123!",
      "confirm_password": "Password123!"
    }
    ```
 
-5. **Check console** for the 6-digit OTP email.
+   To include a profile picture, send `multipart/form-data` with the same fields plus optional `profile_picture` (JPEG, PNG, or WebP, max 5 MB).
 
-6. **Verify email**
+4. **Check console** for the 6-digit OTP email.
+
+5. **Verify email**
 
    `POST http://127.0.0.1:8000/api/auth/verify-email/`
 
@@ -191,7 +189,7 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
 
    Replace `123456` with the OTP from the console.
 
-7. **Login**
+6. **Login**
 
    `POST http://127.0.0.1:8000/api/auth/login/`
 
@@ -202,21 +200,21 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
    }
    ```
 
-8. **Copy** the `token` from the response.
+7. **Copy** the `token` from the response.
 
-9. **Get dashboard**
+8. **Get dashboard**
 
     `GET http://127.0.0.1:8000/api/dashboard/`
 
     Header: `Authorization: Bearer TOKEN_HERE`
 
-10. **Get generated QR codes** (staff/superuser token)
+9. **Get generated QR codes** (staff/superuser token)
 
     `GET http://127.0.0.1:8000/api/setup/qr-codes/`
 
     Use superuser JWT or log in as staff.
 
-11. **Scan collect QR**
+10. **Scan collect QR**
 
     `POST http://127.0.0.1:8000/api/keys/scan/`
 
@@ -228,9 +226,9 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
     }
     ```
 
-12. **Confirm** key status is `WITH_STUDENT` via `GET /api/keys/status/`.
+11. **Confirm** key status is `WITH_STUDENT` via `GET /api/keys/status/`.
 
-13. **Scan drop QR**
+12. **Scan drop QR**
 
     ```json
     {
@@ -238,71 +236,48 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
     }
     ```
 
-14. **Confirm** key status is `AT_PORTER`.
+13. **Confirm** key status is `AT_PORTER`.
 
 ---
 
-## API endpoints (11 total)
+## API endpoints (10 total)
 
 There is **no** `GET /api/hostels/` endpoint. The frontend owns the hostel dropdown.
 
 All JSON responses use a `success` boolean unless noted. Errors return HTTP 400 with `{ "success": false, "message": "..." }` unless otherwise stated.
 
-### 1. `POST /api/auth/lookup-student/`
+### 1. `POST /api/auth/register/`
 
 **Auth:** None
 
-**Description:** Verify matric number against the student registry (mock service for MVP).
+**Description:** Create an account from data submitted by the frontend. No matric or student-registry lookup is performed. `full_name` is built from `first_name` + `last_name`. Creates inactive user, room key status (`AT_PORTER`), and sends email OTP. Profile fields cannot be changed after registration in MVP.
 
-**Body:**
-
-```json
-{
-  "matric_number": "BIU/23/CSC/001"
-}
-```
-
-**Success (200):**
-
-```json
-{
-  "success": true,
-  "student": {
-    "full_name": "Samuel Asije",
-    "email": "samuel.asije@example.com",
-    "matric_number": "BIU/23/CSC/001"
-  }
-}
-```
-
-**Error (400):**
-
-```json
-{
-  "success": false,
-  "message": "Student record not found."
-}
-```
-
----
-
-### 2. `POST /api/auth/register/`
-
-**Auth:** None
-
-**Description:** Complete registration with **hostel name string** and room number from the frontend. Creates inactive user, room key status (`AT_PORTER`), and sends email OTP. Hostel and room cannot be changed after registration in MVP.
-
-**Body:**
+**Body (JSON):**
 
 ```json
 {
   "matric_number": "BIU/23/CSC/001",
+  "email": "samuel.asije@example.com",
   "hostel": "Hope Hostel",
   "room_number": "14",
+  "first_name": "Samuel",
+  "last_name": "Asije",
+  "flat_number": "A1",
   "password": "Password123!",
   "confirm_password": "Password123!"
 }
 ```
+
+**Body (multipart/form-data)** — same fields; add optional `profile_picture` file (nullable).
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `matric_number` | Yes | Any value; must be unique |
+| `email` | Yes | Must be unique; used for OTP and login |
+| `first_name` | Yes | Student-provided |
+| `last_name` | Yes | Student-provided |
+| `flat_number` | Yes | e.g. `A1` |
+| `profile_picture` | No | JPEG, PNG, or WebP; max 5 MB |
 
 **Success (200):**
 
@@ -316,16 +291,16 @@ All JSON responses use a `success` boolean unless noted. Errors return HTTP 400 
 **Errors (400):**
 
 ```json
-{ "success": false, "message": "Student record not found." }
+{ "success": false, "message": "An account already exists for this matric number." }
 ```
 
 ```json
-{ "success": false, "message": "An account already exists for this matric number." }
+{ "success": false, "message": "An account already exists for this email." }
 ```
 
 ---
 
-### 3. `POST /api/auth/verify-email/`
+### 2. `POST /api/auth/verify-email/`
 
 **Auth:** None
 
@@ -361,7 +336,7 @@ All JSON responses use a `success` boolean unless noted. Errors return HTTP 400 
 
 ---
 
-### 4. `POST /api/auth/resend-otp/`
+### 3. `POST /api/auth/resend-otp/`
 
 **Auth:** None
 
@@ -395,7 +370,7 @@ All JSON responses use a `success` boolean unless noted. Errors return HTTP 400 
 
 ---
 
-### 5. `POST /api/auth/login/`
+### 4. `POST /api/auth/login/`
 
 **Auth:** None
 
@@ -427,13 +402,19 @@ or:
   "token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
   "user": {
     "full_name": "Samuel Asije",
+    "first_name": "Samuel",
+    "last_name": "Asije",
     "email": "samuel.asije@example.com",
     "matric_number": "BIU/23/CSC/001",
     "hostel": "Hope Hostel",
-    "room_number": "14"
+    "room_number": "14",
+    "flat_number": "A1",
+    "profile_picture": null
   }
 }
 ```
+
+`profile_picture` is an absolute URL when set, otherwise `null`.
 
 **Errors (400):**
 
@@ -447,7 +428,7 @@ or:
 
 ---
 
-### 6. `GET /api/auth/me/`
+### 5. `GET /api/auth/me/`
 
 **Auth:** Bearer JWT (verified user)
 
@@ -464,6 +445,8 @@ or:
     "matric_number": "BIU/23/CSC/001",
     "hostel": "Hope Hostel",
     "room_number": "14",
+    "flat_number": "A1",
+    "profile_picture": null,
     "is_email_verified": true
   }
 }
@@ -471,7 +454,7 @@ or:
 
 ---
 
-### 7. `GET /api/dashboard/`
+### 6. `GET /api/dashboard/`
 
 **Auth:** Bearer JWT (verified user)
 
@@ -487,7 +470,9 @@ or:
     "matric_number": "BIU/23/CSC/001",
     "email": "samuel.asije@example.com",
     "hostel": "Hope Hostel",
-    "room_number": "14"
+    "room_number": "14",
+    "flat_number": "A1",
+    "profile_picture": null
   },
   "key_status": {
     "status": "AT_PORTER",
@@ -509,7 +494,7 @@ or:
 
 ---
 
-### 8. `GET /api/keys/status/`
+### 7. `GET /api/keys/status/`
 
 **Auth:** Bearer JWT (verified user)
 
@@ -533,7 +518,7 @@ or:
 
 ---
 
-### 9. `GET /api/keys/activity/`
+### 8. `GET /api/keys/activity/`
 
 **Auth:** Bearer JWT (verified user)
 
@@ -560,7 +545,7 @@ or:
 
 ---
 
-### 10. `POST /api/keys/scan/`
+### 9. `POST /api/keys/scan/`
 
 **Auth:** Bearer JWT (verified user)
 
@@ -602,7 +587,7 @@ After success, email is sent to all **verified** students in the same room.
 
 ---
 
-### 11. `GET /api/setup/qr-codes/`
+### 10. `GET /api/setup/qr-codes/`
 
 **Auth:** Staff/superuser JWT (`is_staff=True`)
 
@@ -651,7 +636,7 @@ Initial status for every room: `AT_PORTER`.
 config/           # Django settings & root URLs
 accounts/         # User, StudentProfile, OTP, auth APIs
   services/
-    student_lookup.py   # Mock matric lookup (swap for real API)
+    student_lookup.py   # Optional; not used by registration
     otp.py
     email.py
 hostels/          # Room model (hostel stored as string)
@@ -692,21 +677,9 @@ python manage.py test
 
 ---
 
-## Replacing mock student lookup
-
-Edit `accounts/services/student_lookup.py` and replace `fetch_student_by_matric()` with a call to the official BIU student API. Keep the return shape:
-
-```python
-{
-    "full_name": "...",
-    "email": "...",
-    "matric_number": "...",
-}
-```
-
----
-
 ## Security notes (MVP)
+
+- **Self-service registration** — matric and email come from the client; only uniqueness is enforced (no external registry check).
 
 - **No hostel list API** — frontend hard-codes hostel names; backend stores the submitted string on `Room`.
 - QR scan compares `QRCode.hostel` with `user.profile.room.hostel` using trimmed, case-insensitive matching.
