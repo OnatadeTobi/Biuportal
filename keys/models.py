@@ -8,23 +8,15 @@ class QRCode(models.Model):
         COLLECT = 'COLLECT', 'Collect Key'
 
     qr_code_id = models.CharField(max_length=100, unique=True)
-    hostel = models.CharField(max_length=100)
-    action_type = models.CharField(max_length=10, choices=ActionType.choices)
+    action_type = models.CharField(max_length=10, choices=ActionType.choices, unique=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['hostel', 'action_type']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['hostel', 'action_type'],
-                condition=models.Q(is_active=True),
-                name='unique_active_qr_per_hostel_action',
-            ),
-        ]
+        ordering = ['action_type']
 
     def __str__(self):
-        return f'{self.qr_code_id} ({self.hostel} - {self.action_type})'
+        return f'{self.qr_code_id} ({self.action_type})'
 
 
 class KeyStatus(models.Model):
@@ -71,6 +63,7 @@ class KeyActivity(models.Model):
     )
     qr_code = models.ForeignKey(QRCode, on_delete=models.PROTECT, related_name='activities')
     action_type = models.CharField(max_length=10, choices=ActionType.choices)
+    flat_number = models.CharField(max_length=20, blank=True, default='')
     resulting_status = models.CharField(max_length=20, choices=ResultingStatus.choices)
     timestamp = models.DateTimeField(auto_now_add=True)
 

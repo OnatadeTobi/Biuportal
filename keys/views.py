@@ -73,12 +73,15 @@ class ScanQRView(APIView):
     def post(self, request):
         serializer = ScanQRSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(
-                {'success': False, 'message': 'Invalid request.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            errors = serializer.errors
+            first_field = next(iter(errors))
+            message = errors[first_field][0] if isinstance(errors[first_field], list) else errors[first_field]
+            return Response({'success': False, 'message': str(message)}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            result = process_qr_scan(request.user, serializer.validated_data['qr_code_id'])
+            result = process_qr_scan(
+                request.user,
+                serializer.validated_data['qr_code_id'],
+            )
         except KeyScanError as exc:
             return Response({'success': False, 'message': exc.message}, status=status.HTTP_400_BAD_REQUEST)
         return Response(result)
@@ -88,10 +91,9 @@ class QRCodeSetupView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        qr_codes = QRCode.objects.order_by('hostel', 'action_type')
+        qr_codes = QRCode.objects.order_by('action_type')
         data = [
             {
-                'hostel': qr.hostel,
                 'action_type': qr.action_type,
                 'qr_code_id': qr.qr_code_id,
                 'is_active': qr.is_active,

@@ -1,7 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
 
-from hostels.utils import hostels_match
 from keys.models import KeyActivity, KeyStatus, QRCode
 from keys.services.notifications import notify_room_students
 
@@ -20,11 +19,25 @@ def get_or_create_key_status(room):
     return key_status
 
 
+def _get_student_room_context(user):
+    from accounts.models import StudentProfile
+
+    try:
+        profile = StudentProfile.objects.select_related('room').get(user=user)
+    except StudentProfile.DoesNotExist:
+        raise KeyScanError('Student profile or room not found. Please complete registration.')
+
+    room = profile.room
+    flat_number = profile.flat_number or ''
+    return room, flat_number
+
+
 def process_qr_scan(user, qr_code_id):
     """
-    Process a QR scan for the authenticated student's room.
+    Process a QR scan for the authenticated student's registered room.
 
-    Returns dict with success data or raises KeyScanError.
+    Only qr_code_id is required from the client; student, hostel, room, and flat
+    come from the user profile linked to the auth token.
     """
     try:
         qr_code = QRCode.objects.get(qr_code_id=qr_code_id)
@@ -34,12 +47,7 @@ def process_qr_scan(user, qr_code_id):
     if not qr_code.is_active:
         raise KeyScanError('Invalid or inactive QR code.')
 
-    profile = user.profile
-    room = profile.room
-
-    if not hostels_match(qr_code.hostel, room.hostel):
-        raise KeyScanError('This QR code does not belong to your hostel.')
-
+    room, flat_number = _get_student_room_context(user)
     key_status = get_or_create_key_status(room)
     action_type = qr_code.action_type
     current = key_status.status
@@ -74,6 +82,7 @@ def process_qr_scan(user, qr_code_id):
             student=user,
             qr_code=qr_code,
             action_type=action_type,
+            flat_number=flat_number,
             resulting_status=new_status,
             timestamp=now,
         )
@@ -88,5 +97,6 @@ def process_qr_scan(user, qr_code_id):
         'student': user.full_name,
         'hostel': room.hostel,
         'room_number': room.room_number,
+        'flat_number': flat_number,
         'timestamp': now.isoformat(),
     }

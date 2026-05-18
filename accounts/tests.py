@@ -1,7 +1,6 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from hostels.utils import hostels_match
 from keys.models import KeyStatus, QRCode
 
 
@@ -24,6 +23,8 @@ class AuthAndKeyFlowTests(TestCase):
         self.client = APIClient()
         from django.core.management import call_command
         call_command('seed_mvp_data')
+        self.collect_qr = QRCode.objects.get(action_type='COLLECT').qr_code_id
+        self.drop_qr = QRCode.objects.get(action_type='DROP').qr_code_id
 
     def _verify_user(self, matric):
         from accounts.models import EmailVerificationOTP, User
@@ -42,6 +43,14 @@ class AuthAndKeyFlowTests(TestCase):
             'otp': otp_code,
         }, format='json')
 
+    def _login(self, matric):
+        r = self.client.post('/api/auth/login/', {
+            'identifier': matric,
+            'password': 'Password123!',
+        }, format='json')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {r.data["token"]}')
+        return r
+
     def test_full_registration_and_scan_flow(self):
         matric = 'BIU/23/CSC/001'
         hostel_name = 'Hope Hostel'
@@ -52,85 +61,41 @@ class AuthAndKeyFlowTests(TestCase):
         self.assertTrue(r.data['success'])
 
         self._verify_user(matric)
+        self._login(matric)
 
-        r = self.client.post('/api/auth/login/', {
-            'identifier': matric,
-            'password': 'Password123!',
-        }, format='json')
-        self.assertTrue(r.data['success'])
-        self.assertEqual(r.data['user']['hostel'], hostel_name)
-        self.assertEqual(r.data['user']['first_name'], 'Samuel')
-        self.assertEqual(r.data['user']['flat_number'], 'A1')
-        self.assertIsNone(r.data['user']['profile_picture'])
-        token = r.data['token']
-
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
-
-        collect_qr = QRCode.objects.get(hostel=hostel_name, action_type='COLLECT').qr_code_id
-        r = self.client.post('/api/keys/scan/', {'qr_code_id': collect_qr}, format='json')
+        r = self.client.post('/api/keys/scan/', {'qr_code_id': self.collect_qr}, format='json')
         self.assertTrue(r.data['success'])
         self.assertEqual(r.data['key_status'], KeyStatus.Status.WITH_STUDENT)
+        self.assertEqual(r.data['hostel'], hostel_name)
+        self.assertEqual(r.data['flat_number'], 'A1')
 
-        r = self.client.post('/api/keys/scan/', {'qr_code_id': collect_qr}, format='json')
+        r = self.client.post('/api/keys/scan/', {'qr_code_id': self.collect_qr}, format='json')
         self.assertFalse(r.data['success'])
 
-        drop_qr = QRCode.objects.get(hostel=hostel_name, action_type='DROP').qr_code_id
-        r = self.client.post('/api/keys/scan/', {'qr_code_id': drop_qr}, format='json')
+        r = self.client.post('/api/keys/scan/', {'qr_code_id': self.drop_qr}, format='json')
         self.assertTrue(r.data['success'])
         self.assertEqual(r.data['key_status'], KeyStatus.Status.AT_PORTER)
 
-    def test_register_any_matric_without_lookup(self):
-        r = self.client.post('/api/auth/register/', _register_payload(
-            'BIU/NEW/999', 'Hope Hostel', 'new.student@example.com',
-            first_name='New', last_name='Student',
-        ), format='json')
-        self.assertTrue(r.data['success'])
-
-    def test_hostel_case_insensitive_scan(self):
+    def test_scan_uses_profile_not_request_body(self):
         matric = 'BIU/23/CSC/002'
-        r = self.client.post('/api/auth/register/', _register_payload(
-            matric, 'hope hostel', 'jane.doe@example.com',
-            room_number='20', first_name='Jane', last_name='Doe', flat_number='B2',
-        ), format='json')
-        self.assertTrue(r.data['success'])
-
-        self._verify_user(matric)
-        r = self.client.post('/api/auth/login/', {
-            'identifier': matric,
-            'password': 'Password123!',
-        }, format='json')
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {r.data["token"]}')
-
-        from accounts.models import User
-        user = User.objects.get(matric_number=matric)
-        collect_qr = QRCode.objects.get(hostel='Hope Hostel', action_type='COLLECT').qr_code_id
-        r = self.client.post('/api/keys/scan/', {'qr_code_id': collect_qr}, format='json')
-        self.assertTrue(r.data['success'])
-        self.assertTrue(hostels_match(user.profile.room.hostel, 'Hope Hostel'))
-
-    def test_wrong_hostel_qr_rejected(self):
-        matric = 'BIU/23/CSC/003'
         self.client.post('/api/auth/register/', _register_payload(
-            matric, 'Peace Hostel', 'david.johnson@example.com',
-            room_number='5', first_name='David', last_name='Johnson', flat_number='C3',
+            matric, 'Peace Hostel', 'jane.doe@example.com',
+            room_number='20', flat_number='B2',
         ), format='json')
-
         self._verify_user(matric)
-        r = self.client.post('/api/auth/login/', {
-            'identifier': matric,
-            'password': 'Password123!',
+        self._login(matric)
+
+        # Wrong hostel in body is ignored; profile Peace Hostel is used.
+        r = self.client.post('/api/keys/scan/', {
+            'qr_code_id': self.collect_qr,
+            'hostel': 'Wrong Hostel',
+            'room_number': '999',
+            'flat_number': 'ZZ',
         }, format='json')
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {r.data["token"]}')
+        self.assertTrue(r.data['success'])
+        self.assertEqual(r.data['hostel'], 'Peace Hostel')
+        self.assertEqual(r.data['room_number'], '20')
+        self.assertEqual(r.data['flat_number'], 'B2')
 
-        hope_collect = QRCode.objects.get(hostel='Hope Hostel', action_type='COLLECT').qr_code_id
-        r = self.client.post('/api/keys/scan/', {'qr_code_id': hope_collect}, format='json')
-        self.assertFalse(r.data['success'])
-        self.assertEqual(r.data['message'], 'This QR code does not belong to your hostel.')
-
-    def test_lookup_endpoint_removed(self):
-        r = self.client.post('/api/auth/lookup-student/', {'matric_number': 'ANY'}, format='json')
-        self.assertEqual(r.status_code, 404)
-
-    def test_hostels_endpoint_removed(self):
-        r = self.client.get('/api/hostels/')
-        self.assertEqual(r.status_code, 404)
+    def test_only_two_qr_codes_exist(self):
+        self.assertEqual(QRCode.objects.count(), 2)

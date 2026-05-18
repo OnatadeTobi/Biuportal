@@ -30,6 +30,7 @@ def build_activity_dict(activity):
         'student': activity.student.full_name,
         'hostel': activity.room.hostel,
         'room_number': activity.room.room_number,
+        'flat_number': activity.flat_number,
         'timestamp': activity.timestamp.isoformat(),
         'resulting_status': activity.resulting_status,
     }

@@ -222,9 +222,11 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
 
     ```json
     {
-      "qr_code_id": "qr_live_hope_collect_B82K10QZ91MN"
+      "qr_code_id": "qr_live_collect_B82K10QZ91MN"
     }
     ```
+
+    Hostel, room, and flat are read from the logged-in user's registration profile — do not send them in the body.
 
 11. **Confirm** key status is `WITH_STUDENT` via `GET /api/keys/status/`.
 
@@ -232,7 +234,7 @@ JWT string, e.g. `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...`
 
     ```json
     {
-      "qr_code_id": "qr_live_hope_drop_9F3K92XQ1PZ7"
+      "qr_code_id": "qr_live_drop_9F3K92XQ1PZ7"
     }
     ```
 
@@ -549,13 +551,13 @@ or:
 
 **Auth:** Bearer JWT (verified user)
 
-**Description:** Process QR scan. **Request body must only contain `qr_code_id`.** Backend derives action, room, hostel, and timestamp.
+**Description:** Process QR scan. **Request body must only contain `qr_code_id`.** The Bearer token identifies the student; hostel, room number, and flat number are taken from their `StudentProfile` (set at registration). The QR record supplies DROP vs COLLECT.
 
 **Body:**
 
 ```json
 {
-  "qr_code_id": "qr_live_hope_collect_B82K10QZ91MN"
+  "qr_code_id": "qr_live_collect_B82K10QZ91MN"
 }
 ```
 
@@ -570,6 +572,7 @@ or:
   "student": "Samuel Asije",
   "hostel": "Hope Hostel",
   "room_number": "14",
+  "flat_number": "A1",
   "timestamp": "2026-05-17T08:45:00+01:00"
 }
 ```
@@ -579,7 +582,7 @@ or:
 | Message |
 |---------|
 | `Invalid or inactive QR code.` |
-| `This QR code does not belong to your hostel.` |
+| `Student profile or room not found. Please complete registration.` |
 | `This key is already at the porter's lodge.` |
 | `This key has already been collected.` |
 
