@@ -110,6 +110,8 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = config(
     'DEFAULT_FROM_EMAIL',
     default='BIU Hostel Keys <noreply@biu.edu.ng>',
