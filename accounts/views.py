@@ -81,11 +81,6 @@ class ResendOTPView(APIView):
                 message = 'Invalid request.'
             return Response({'success': False, 'message': str(message)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Log email backend and from address to help debug SMTP vs console backend
-        logger.info('ResendOTP called. EMAIL_BACKEND=%s DEFAULT_FROM_EMAIL=%s',
-                getattr(settings, 'EMAIL_BACKEND', None),
-                getattr(settings, 'DEFAULT_FROM_EMAIL', None))
-
         user = serializer.context['user']
         otp_code = create_otp_for_user(user)
         send_verification_otp_email(user, otp_code)
