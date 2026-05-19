@@ -25,7 +25,16 @@ class DashboardView(APIView):
 
         user_summary = build_user_profile_dict(request.user, request)
 
-        recent = [build_activity_dict(a) for a in activities]
+        recent = [
+            {
+                'action_type': a.action_type,
+                'label': build_activity_dict(a)['label'],
+                'student': a.student.full_name,
+                'timestamp': a.timestamp.isoformat(),
+                'resulting_status': a.resulting_status,
+            }
+            for a in activities
+        ]
 
         return Response({
             'success': True,

@@ -12,6 +12,7 @@ from accounts.serializers import (
     ResendOTPSerializer,
     VerifyEmailSerializer,
 )
+from accounts.services.student_lookup import BIUPortalError, fetch_biu_student_details
 from accounts.services.email import send_verification_otp_email
 from accounts.services.otp import create_otp_for_user
 from accounts.utils import build_user_profile_dict
@@ -109,3 +110,54 @@ class MeView(APIView):
         user_data = build_user_profile_dict(request.user, request)
         user_data['is_email_verified'] = request.user.is_email_verified
         return Response({'success': True, 'user': user_data})
+
+
+class StudentLookupView(APIView):
+    """
+    Look up student details from the external BIU portal.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        matric_no = request.query_params.get('matric_no', '').strip()
+
+        if not matric_no:
+            return Response(
+                {'success': False, 'message': 'matric_no query parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Basic validation for matric_no: allow letters, numbers, /, -, _
+        import re
+        if not re.match(r'^[A-Za-z0-9/_-]+$', matric_no):
+            return Response(
+                {'success': False, 'message': 'Invalid matric_no format.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Reject full URLs
+        if '://' in matric_no:
+            return Response(
+                {'success': False, 'message': 'Invalid matric_no format.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            student_data = fetch_biu_student_details(matric_no)
+            return Response({
+                'success': True,
+                'source': 'biu_portal',
+                'matric_no': matric_no,
+                'data': student_data
+            })
+        except BIUPortalError as e:
+            return Response(
+                {'success': False, 'message': e.message},
+                status=e.status_code
+            )
+        except Exception:
+            # Safe 500 response for unexpected parsing or internal errors
+            return Response(
+                {'success': False, 'message': 'An unexpected error occurred while fetching student data.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
