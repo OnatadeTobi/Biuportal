@@ -16,6 +16,10 @@ from accounts.services.student_lookup import BIUPortalError, fetch_biu_student_d
 from accounts.services.email import send_verification_otp_email
 from accounts.services.otp import create_otp_for_user
 from accounts.utils import build_user_profile_dict
+import logging
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class RegisterView(APIView):
@@ -71,6 +75,11 @@ class ResendOTPView(APIView):
             else:
                 message = 'Invalid request.'
             return Response({'success': False, 'message': str(message)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Log email backend and from address to help debug SMTP vs console backend
+        logger.info('ResendOTP called. EMAIL_BACKEND=%s DEFAULT_FROM_EMAIL=%s',
+                getattr(settings, 'EMAIL_BACKEND', None),
+                getattr(settings, 'DEFAULT_FROM_EMAIL', None))
 
         user = serializer.context['user']
         otp_code = create_otp_for_user(user)
