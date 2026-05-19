@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from accounts.permissions import IsEmailVerified
 from accounts.utils import build_user_profile_dict
@@ -14,6 +15,7 @@ from keys.utils import build_activity_dict, build_key_status_dict, build_key_sta
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
+    @extend_schema(responses={200: None})
     def get(self, request):
         profile = request.user.profile
         room = profile.room
@@ -47,6 +49,7 @@ class DashboardView(APIView):
 class KeyStatusView(APIView):
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
+    @extend_schema(responses={200: None})
     def get(self, request):
         room = request.user.profile.room
         return Response({
@@ -58,6 +61,7 @@ class KeyStatusView(APIView):
 class KeyActivityView(APIView):
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
+    @extend_schema(responses={200: None})
     def get(self, request):
         room = request.user.profile.room
         activities = KeyActivity.objects.filter(room=room).select_related('student', 'room')
@@ -69,6 +73,7 @@ class KeyActivityView(APIView):
 
 class ScanQRView(APIView):
     permission_classes = [IsAuthenticated, IsEmailVerified]
+    serializer_class = ScanQRSerializer
 
     def post(self, request):
         serializer = ScanQRSerializer(data=request.data)
@@ -90,6 +95,7 @@ class ScanQRView(APIView):
 class QRCodeSetupView(APIView):
     permission_classes = [IsAdminUser]
 
+    @extend_schema(responses={200: None})
     def get(self, request):
         qr_codes = QRCode.objects.order_by('action_type')
         data = [

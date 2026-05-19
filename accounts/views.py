@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema
 
 from accounts.permissions import IsEmailVerified
 from accounts.serializers import (
@@ -25,7 +26,9 @@ logger = logging.getLogger(__name__)
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    serializer_class = RegisterSerializer
 
+    @extend_schema(responses={201: RegisterSerializer})
     def post(self, request):
         serializer = RegisterSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
@@ -47,6 +50,7 @@ class RegisterView(APIView):
 
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = VerifyEmailSerializer
 
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
@@ -63,6 +67,7 @@ class VerifyEmailView(APIView):
 
 class ResendOTPView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = ResendOTPSerializer
 
     def post(self, request):
         serializer = ResendOTPSerializer(data=request.data)
@@ -92,6 +97,7 @@ class ResendOTPView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -115,6 +121,7 @@ class LoginView(APIView):
 class MeView(APIView):
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
+    @extend_schema(responses={200: None})  # We could define a dedicated serializer for the response if needed
     def get(self, request):
         user_data = build_user_profile_dict(request.user, request)
         user_data['is_email_verified'] = request.user.is_email_verified
@@ -127,6 +134,7 @@ class StudentLookupView(APIView):
     """
     permission_classes = [AllowAny]
 
+    @extend_schema(responses={200: None})
     def get(self, request):
         matric_no = request.query_params.get('matric_no', '').strip()
 
