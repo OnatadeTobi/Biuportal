@@ -128,6 +128,7 @@ class StudentLookupView(APIView):
     Look up student details from the external BIU portal.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     @extend_schema(responses={200: None})
     def get(self, request):
